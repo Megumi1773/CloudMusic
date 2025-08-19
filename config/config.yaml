@@ -1,0 +1,15 @@
+app:
+  name: CloudMusic
+  port: :3000
+database:
+  dns: cloudmusic:123456@tcp(localhost:3306)/cloudmusic?charset=utf8&parseTime=true&loc=Local
+  MaxInCons: 10
+  MaxOpenCons: 100
+jwt:
+  key: KURIYAMAMIRAII
+  exp: 24
+minio:
+  url: 8.141.9.144:19000
+  access_key: mZeNY2cn4wXlEqtoAV3p
+  secret_key: GpW5rpaa2bS62IhJsFdrccxJaA3dH12Xb2W4MnTC
+  expire: 7 #Url过期天数
