@@ -13,7 +13,9 @@ type Playlist struct {
 	Cover       string `gorm:"type:varchar(255);default null" json:"cover,omitempty"`
 	Description string `gorm:"type:text;default null" json:"description,omitempty"`
 	IsPublic    uint   `gorm:"type:tinyint(1);default 1" json:"is_public,omitempty"`
-
+	Type        uint   `gorm:"type:tinyint(1);default 1" json:"type,omitempty"`
+	//type userid 联合索引 唯一约束
+	_ struct{} `gorm:"uniqueIndex:uidx_user_like,priority:1;constraint:CHECK (type IN (0,1))"`
 	// 添加歌单与用户的多对一关系
 	User User `gorm:"foreignKey:UserId" json:"-"`
 	// 添加歌单与歌曲的多对多关系

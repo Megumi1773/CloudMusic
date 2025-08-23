@@ -40,3 +40,7 @@ func GetEveryDaySongList(c *gin.Context) {
 
 	Respond.Resp.Success(c, "获取成功", res)
 }
+
+func GetMayBeYouLike(c *gin.Context) {
+	Respond.Resp.Success(c, "获取成功", 114514)
+}

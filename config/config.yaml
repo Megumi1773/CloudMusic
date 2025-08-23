@@ -5,11 +5,20 @@ database:
   dns: cloudmusic:123456@tcp(localhost:3306)/cloudmusic?charset=utf8&parseTime=true&loc=Local
   MaxInCons: 10
   MaxOpenCons: 100
+redis:
+  addr: 8.141.9.144:6379
+  password: megumikato
 jwt:
   key: KURIYAMAMIRAII
   exp: 24
 minio:
   url: 8.141.9.144:19000
-  access_key: mZeNY2cn4wXlEqtoAV3p
-  secret_key: GpW5rpaa2bS62IhJsFdrccxJaA3dH12Xb2W4MnTC
+  AccessKey: mZeNY2cn4wXlEqtoAV3p
+  SecretKey: GpW5rpaa2bS62IhJsFdrccxJaA3dH12Xb2W4MnTC
   expire: 7 #Url过期天数
+email:
+  MailHost: smtp.qq.com
+  MailPort: 465
+  MailUser: 479156530
+  MailFrom: 479156530@qq.com
+  MailPass: wasvwjlkdknqbijf

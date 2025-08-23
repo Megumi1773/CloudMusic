@@ -3,8 +3,8 @@ package model
 import "time"
 
 type Song struct {
-	Id       int       `gorm:"primary_key;AUTO_INCREMENT" json:"id,omitempty"`
-	Name     string    `gorm:"varchar(100);not null;" json:"name"`
+	Id       uint      `gorm:"primary_key;AUTO_INCREMENT" json:"id,omitempty"`
+	Name     string    `gorm:"varchar(100);not null;unique" json:"name"`
 	ArtistId uint64    `gorm:"bigint(20);not null;" json:"artist_id,omitempty"`
 	AlbumId  uint64    `gorm:"bigint(20);not null;" json:"album_id,omitempty"`
 	Duration uint32    `gorm:"int(11);not null;" json:"duration"`

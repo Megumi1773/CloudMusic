@@ -24,6 +24,7 @@ type AlbumResp struct {
 	Id          uint      `json:"id"`
 	Name        string    `json:"name"`
 	ArtistName  string    `json:"artist_name"`
+	ArtistCover string    `json:"artist_cover"`
 	Cover       string    `json:"cover"`
 	Description string    `json:"description"`
 	ReleaseTime time.Time `json:"release_time"`

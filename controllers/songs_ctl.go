@@ -28,7 +28,7 @@ func GetSongDetail(c *gin.Context) {
 		return
 	}
 	filterData := struct {
-		Id         int    `json:"id,omitempty"`
+		Id         uint   `json:"id,omitempty"`
 		Name       string `json:"name,omitempty"`
 		Duration   uint32 `json:"duration,omitempty"`
 		Lyric      string `json:"lyric,omitempty"`

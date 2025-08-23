@@ -112,7 +112,7 @@ func GetArtistsAlbums(c *gin.Context) {
 	page, _ := strconv.Atoi(pageStr)
 	pageSize, _ := strconv.Atoi(pageSizeStr)
 	var artistsCount int64
-	if err := global.DB.Model(&model.Album{}).Where("id = ?", id).Count(&artistsCount).Error; err != nil {
+	if err := global.DB.Model(&model.Artist{}).Where("id = ?", id).Count(&artistsCount).Error; err != nil {
 		log.Printf("歌手不存在===>%v", err.Error())
 		Respond.Resp.Fail(c, http.StatusInternalServerError, "系统错误")
 		return
@@ -127,7 +127,7 @@ func GetArtistsAlbums(c *gin.Context) {
 	err := global.DB.Table("albums").
 		Select("albums.id, albums.name,albums.cover,albums.description,albums.release_time,artists.name as artist_name").
 		Joins("left join artists on albums.artist_id = artists.id").
-		Where("albums.id = ?", id).
+		Where("artists.id = ?", id).
 		Limit(pageSize).
 		Offset(offset).
 		Scan(&result).Error

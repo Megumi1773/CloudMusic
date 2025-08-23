@@ -30,6 +30,7 @@ func GetAlbumDetail(c *gin.Context) {
 		Id:          album.ID,
 		Name:        album.Name,
 		ArtistName:  artist.Name,
+		ArtistCover: artist.Avatar,
 		Cover:       album.Cover,
 		Description: album.Description,
 		ReleaseTime: album.ReleaseTime,
@@ -55,6 +56,7 @@ func GetAlbumSongs(c *gin.Context) {
 		Select("songs.id, songs.name, songs.duration, artists.name as artist_name,albums.name as album_name,albums.cover as album_cover").
 		Joins("left join albums on songs.album_id = albums.id").
 		Joins("left join artists on songs.artist_id = artists.id").
+		Where("albums.id = ?", id).
 		Scan(&res).Error
 	if err != nil {
 		log.Printf("专辑查歌===> %v", err)

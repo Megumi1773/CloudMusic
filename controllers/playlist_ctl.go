@@ -4,9 +4,11 @@ import (
 	"CloudMusic/controllers/Respond"
 	"CloudMusic/global"
 	"CloudMusic/model"
+	"database/sql"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"log"
 	"net/http"
 	"strconv"
@@ -73,7 +75,6 @@ func GetPlayListsByUserId(c *gin.Context) {
 
 // GetPlayLists GET /api/playlists/list - 获取用户全部歌单
 func GetPlayLists(c *gin.Context) {
-	// 获取 id name cover is_public 即可
 	userid, _ := c.Get("userid")
 	var res []model.PlaylistResp
 	err := global.DB.Table("playlists").
@@ -103,6 +104,7 @@ func GetPlayListSongs(c *gin.Context) {
 		Joins("left join artists on songs.artist_id = artists.id").
 		Joins("left join albums on songs.album_id = albums.id").
 		Where("playlist_songs.playlist_id = ?", id).
+		Order("playlist_songs.id DESC").
 		Scan(&res).Error
 	if err != nil {
 
@@ -138,6 +140,7 @@ func CreatePlayList(c *gin.Context) {
 		Cover:       reqJson.Cover,
 		Description: reqJson.Description,
 		IsPublic:    1,
+		Type:        1,
 	}
 	if reqJson.IsPublic != 0 {
 		playlist.IsPublic = reqJson.IsPublic
@@ -267,25 +270,29 @@ func AddSongPlayList(c *gin.Context) {
 		return
 	}
 	//添加关联如歌曲歌单表 Association创建关联与数据模型表关联字段名一致
-	if err := global.DB.Model(&playlist).Association("Songs").Append(&songs); err != nil {
-		log.Printf("Association err:==>%v", err)
-		Respond.Resp.Fail(c, http.StatusInternalServerError, "系统错误")
+	//起 事务 处理歌单封面自动换成歌单最新歌曲封面
+	tx := global.DB.Begin()
+	if err := updatePlaylistSongs(tx, playlist.ID, songs, true); err != nil {
+		tx.Rollback()
+		fail(c, "playlist add songs err", err)
 		return
 	}
+	tx.Commit()
 	Respond.Resp.Success(c, "添加成功！", req.SongIds)
 }
 
 // DeleteSongPlayList DELETE /api/playlists/:id/songs/:songId - 从歌单中删除歌曲
 func DeleteSongPlayList(c *gin.Context) {
+	userId, _ := c.Get("userid")
 	playlistID := Respond.GetId(c)
 	if playlistID == -1 {
 		Respond.Resp.Fail(c, http.StatusBadRequest, "参数错误")
 		return
 	}
 	var playlist model.Playlist
-	if err := global.DB.First(&playlist, playlistID).Error; err != nil {
+	if err := global.DB.Where("id = ? AND user_id = ?", playlistID, userId).First(&playlist).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			Respond.Resp.Fail(c, http.StatusBadRequest, "歌单不存在")
+			Respond.Resp.Fail(c, http.StatusBadRequest, "只能操作属于自己的歌单")
 			return
 		} else {
 			log.Printf("Get playlist err:==>%v", err)
@@ -295,8 +302,8 @@ func DeleteSongPlayList(c *gin.Context) {
 	}
 	deleteSongId := c.Param("songId")
 	dId, _ := strconv.Atoi(deleteSongId)
-	var song model.Song
-	if err := global.DB.First(&song, dId).Error; err != nil {
+	var songs []model.Song
+	if err := global.DB.Where("id IN (?)", deleteSongId).Find(&songs).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			Respond.Resp.Fail(c, http.StatusBadRequest, "歌曲不存在")
 			return
@@ -305,22 +312,77 @@ func DeleteSongPlayList(c *gin.Context) {
 			Respond.Resp.Fail(c, http.StatusInternalServerError, "系统错误")
 		}
 	}
-	// 删除有必要做歌单存不存在该歌曲的验证??? 存疑 可以去除
-	var count int64
-	if err := global.DB.Table("playlist_songs").Where("playlist_id = ? AND song_id = ?", playlist.ID, song.Id).Count(&count).Error; err != nil {
-		log.Printf("Delete playlist_songs song By Get playlist_songs Count err:==>%v", err)
-		Respond.Resp.Fail(c, http.StatusInternalServerError, "系统错误")
-		return
-	}
-	if count == 0 {
-		Respond.Resp.Success(c, "歌曲已经不存在于歌单", nil)
-		return
-	}
 	//或许不必要使用关联删除 可以直接操作中间表(playlist_songs) 删除记录
-	if err := global.DB.Model(&playlist).Association("Songs").Delete(&song); err != nil {
-		log.Printf("Delete song err:==>%v", err)
-		Respond.Resp.Fail(c, http.StatusInternalServerError, "系统错误")
+	tx := global.DB.Begin()
+	if err := updatePlaylistSongs(tx, playlist.ID, songs, false); err != nil {
+		tx.Rollback()
+		fail(c, "playlist del songs err", err)
 		return
 	}
+	tx.Commit()
 	Respond.Resp.Success(c, "删除成功", dId)
 }
+
+// LikeSong 添加喜欢音乐 POST /api/playlists/like/:id
+func LikeSong(c *gin.Context) {
+	songID := Respond.GetId(c)
+	if songID == -1 {
+		Respond.Resp.Fail(c, http.StatusBadRequest, "参数错误")
+		return
+	}
+	userid, _ := c.Get("userid")
+	var likeplaylist model.Playlist
+	if err := global.DB.Model(&model.Playlist{}).
+		Where("user_id = ? AND type = 1", userid).
+		First(&likeplaylist).Error; err != nil {
+		log.Printf("Get playlist id err:==>%v", err)
+		Respond.Resp.Fail(c, http.StatusInternalServerError, "服务器错误")
+		return
+	}
+	var songs []model.Song
+	if err := global.DB.Where("id IN (?)", songID).Find(&songs).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			Respond.Resp.Fail(c, http.StatusBadRequest, "歌曲不存在")
+			return
+		}
+		log.Printf("Get song err:==>%v", err)
+		Respond.Resp.Fail(c, http.StatusInternalServerError, "服务器错误")
+		return
+	}
+
+	tx := global.DB.Begin()
+	if err := updatePlaylistSongs(tx, likeplaylist.ID, songs, true); err != nil {
+		tx.Rollback()
+		fail(c, "like songs err", err)
+		return
+	}
+	tx.Commit()
+
+	Respond.Resp.Success(c, "已添加到我喜欢歌单", nil)
+}
+
+// 封装事务函数 处理歌单 + - 歌曲
+func updatePlaylistSongs(tx *gorm.DB, playlistId uint, songs []model.Song, add bool) error {
+	var p model.Playlist
+	if err := tx.First(&p, playlistId).Error; err != nil {
+		return err
+	}
+	op := tx.Clauses(clause.OnConflict{DoNothing: true}).Model(&p).Association("Songs").Append
+	if !add {
+		op = tx.Clauses(clause.OnConflict{DoNothing: true}).Model(&p).Association("Songs").Delete
+	}
+	if err := op(&songs); err != nil {
+		return err
+	}
+	var cover sql.NullString
+	tx.Raw(`
+	select al.cover from playlist_songs ps
+	join songs s on s.id = ps.song_id
+	join albums al on al.id = s.album_id
+	where ps.playlist_id = ?
+	order by ps.id DESC
+`, p.ID).Scan(&cover)
+	return tx.Model(&p).Update("cover", &cover.String).Error
+}
+
+//前端处理 给一个{喜欢的歌曲}id列表

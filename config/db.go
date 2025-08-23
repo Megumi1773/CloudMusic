@@ -3,6 +3,7 @@ package config
 import (
 	"CloudMusic/global"
 	"CloudMusic/model"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
@@ -23,6 +24,11 @@ func initDb() {
 
 	global.DB = db
 	DbMigrate()
+	global.Rdb = redis.NewClient(&redis.Options{
+		Addr:     AppConfig.Redis.Addr,
+		Password: AppConfig.Redis.Password,
+	})
+
 }
 
 // DbMigrate 迁移数据库 对于model数据模型
@@ -31,9 +37,6 @@ func DbMigrate() {
 		log.Fatalf("failed to migrate database, %v", err)
 	}
 	if err := global.DB.AutoMigrate(&model.Song{}); err != nil {
-		log.Fatalf("failed to migrate database, %v", err)
-	}
-	if err := global.DB.AutoMigrate(&model.TokenBlackList{}); err != nil {
 		log.Fatalf("failed to migrate database, %v", err)
 	}
 	if err := global.DB.AutoMigrate(&model.Playlist{}); err != nil {

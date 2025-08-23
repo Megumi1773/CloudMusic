@@ -15,6 +15,11 @@ type Config struct {
 		MaxInCons   int    `yaml:"max_in_cons"`
 		MaxOpenCons int    `yaml:"max_open_cons"`
 	} `yaml:"database"`
+	Redis struct {
+		Addr     string `yaml:"addr"`
+		Password string `yaml:"password"`
+		DB       int    `yaml:"db"`
+	}
 	Jwt struct {
 		Key string `yaml:"key"`
 		Exp int    `yaml:"exp"`
@@ -25,6 +30,13 @@ type Config struct {
 		SecretKey string `yaml:"secret_key"`
 		Expire    int    `yaml:"expire"`
 	} `yaml:"minio"`
+	Email struct {
+		MailHost string `yaml:"mail_host"`
+		MailPort int    `yaml:"mail_port"`
+		MailUser string `yaml:"mail_user"`
+		MailFrom string `yaml:"mail_from"`
+		MailPass string `yaml:"mail_pass"`
+	} `yaml:"email"`
 }
 
 var AppConfig *Config
