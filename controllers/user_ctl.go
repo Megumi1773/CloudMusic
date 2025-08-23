@@ -191,9 +191,8 @@ func RegisterWithEmail(c *gin.Context) {
 		Respond.Resp.Fail(c, http.StatusBadRequest, "密码不能为空")
 		return
 	}
-	rand.Seed(time.Now().UnixNano())
-	randNum := rand.Int()
-	username := strings.Replace(RegUser.Email, "@qq.com", "", 1)
+	randNum := rand.Intn(int(time.Now().UnixNano()))
+	username := strings.Split(RegUser.Email, "@")[0]
 	nickname := "用户" + strconv.Itoa(randNum)[:6]
 	newUser := model.User{
 		Username: username,
