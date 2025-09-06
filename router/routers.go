@@ -72,8 +72,16 @@ func SetupRouter() *gin.Engine {
 		playlists.POST("/:id/songs", controllers.AddSongPlayList)
 		//DELETE /api/playlists/:id/songs/:songId - 从歌单中删除歌曲
 		playlists.DELETE("/:id/songs/:songId", controllers.DeleteSongPlayList)
+
+		// GET /api/playlists/likesongids -获取所有喜欢的歌的id
+		playlists.GET("/likesongids", controllers.GetLikeSongsId)
+		// POST /api/playlists/toggle/like
+		playlists.POST("/toggle/like", controllers.ToggleLikeSong)
+		//	弃用
 		// POST /api/playlists/like/:id -添加歌曲到我喜欢歌单
-		playlists.POST("/like/:id", controllers.LikeSong)
+		//playlists.POST("/like/:id", controllers.LikeSong)
+		// POST /api/playlists/unlike/:id -取消喜欢
+		//playlists.POST("/unlike/:id", controllers.UnLikeSong)
 	}
 
 	everyday := r.Group("/api/everyday")
@@ -81,6 +89,11 @@ func SetupRouter() *gin.Engine {
 	{
 		everyday.GET("/song", controllers.GetEveryDaySongList)
 		everyday.GET("/mbulike", controllers.GetMayBeYouLike)
+	}
+	search := r.Group("/api/search")
+	search.Use(middle.AuthMiddle)
+	{
+		search.GET("/", controllers.SearchHandler)
 	}
 	return r
 }

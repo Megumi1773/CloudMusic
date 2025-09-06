@@ -37,6 +37,10 @@ type Config struct {
 		MailFrom string `yaml:"mail_from"`
 		MailPass string `yaml:"mail_pass"`
 	} `yaml:"email"`
+	Meilisearch struct {
+		Host      string `yaml:"host"`
+		MasterKey string `yaml:"master_key"`
+	} `yaml:"meilisearch"`
 }
 
 var AppConfig *Config

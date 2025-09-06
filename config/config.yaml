@@ -2,11 +2,11 @@ app:
   name: CloudMusic
   port: :3000
 database:
-  dns: cloudmusic:123456@tcp(localhost:3306)/cloudmusic?charset=utf8&parseTime=true&loc=Local
+  dns: cloudmusic:tWwHDPbexN5vSqJM@tcp(localhost:3306)/cloudmusic?charset=utf8&parseTime=true&loc=Local
   MaxInCons: 10
   MaxOpenCons: 100
 redis:
-  addr: 8.141.9.144:6379
+  addr: localhost:6379
   password: megumikato
 jwt:
   key: KURIYAMAMIRAII
@@ -22,3 +22,6 @@ email:
   MailUser: 479156530
   MailFrom: 479156530@qq.com
   MailPass: wasvwjlkdknqbijf
+meilisearch:
+  host: http://localhost:7700
+  master-key:

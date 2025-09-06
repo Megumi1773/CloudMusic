@@ -53,7 +53,7 @@ func GetAlbumSongs(c *gin.Context) {
 
 	var res []model.SongDetailResp
 	err := global.DB.Table("songs").
-		Select("songs.id, songs.name, songs.duration, artists.name as artist_name,albums.name as album_name,albums.cover as album_cover").
+		Select("songs.id, songs.name, songs.duration, artists.name as artist_name,albums.id as album_id,albums.name as album_name,albums.cover as album_cover").
 		Joins("left join albums on songs.album_id = albums.id").
 		Joins("left join artists on songs.artist_id = artists.id").
 		Where("albums.id = ?", id).

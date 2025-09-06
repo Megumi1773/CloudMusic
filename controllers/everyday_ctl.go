@@ -17,6 +17,7 @@ func GetEveryDaySongList(c *gin.Context) {
 			SELECT s.id,
 			       s.name,
 			       s.duration,
+			       s.album_id as album_id,
 			       a.name  AS artist_name,
 			       al.name AS album_name,
 			       al.cover AS album_cover

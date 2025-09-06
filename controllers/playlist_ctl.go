@@ -23,7 +23,7 @@ func GetPlayListInfo(c *gin.Context) {
 	}
 	var res model.PlaylistResp
 	err := global.DB.Table("playlists").
-		Select("playlists.id,playlists.name,users.nickname as nickname,users.avatar as user_avatar,playlists.description,playlists.cover,playlists.is_public,playlists.created_at as created_at").
+		Select("playlists.id,users.id as user_id,playlists.name,users.nickname as nickname,users.avatar as user_avatar,playlists.description,playlists.cover,playlists.is_public,playlists.created_at as created_at").
 		Joins("left join users on playlists.user_id = users.id").
 		Where("playlists.id = ?", id).
 		First(&res).Error
@@ -64,6 +64,7 @@ func GetPlayListsByUserId(c *gin.Context) {
 		Select("playlists.id,playlists.name,users.nickname as nickname,users.avatar as user_avatar,playlists.cover,playlists.is_public,playlists.created_at").
 		Joins("left join users on playlists.user_id = users.id").
 		Where("playlists.user_id = ?", user.ID).
+		Order("type DESC").
 		Scan(&res).Error
 	if err != nil {
 		log.Printf("Joins get playlists by user all playlists err:==>%v", err)
@@ -81,6 +82,7 @@ func GetPlayLists(c *gin.Context) {
 		Select("playlists.id,playlists.name,users.nickname as nickname,users.avatar as user_avatar,playlists.cover,playlists.is_public,playlists.created_at").
 		Joins("left join users on playlists.user_id = users.id").
 		Where("playlists.user_id = ?", userid).
+		Order("type DESC").
 		Scan(&res).Error
 	if err != nil {
 		log.Printf("Joins get playlists by user all playlists err:==>%v", err)
@@ -99,7 +101,7 @@ func GetPlayListSongs(c *gin.Context) {
 	}
 	var res []model.SongDetailResp
 	err := global.DB.Table("playlist_songs").
-		Select("songs.id,songs.name,songs.duration,artists.name as artist_name,albums.name as album_name,albums.cover as album_cover").
+		Select("songs.id,songs.name,songs.duration,artists.name as artist_name,albums.id as album_id,albums.name as album_name,albums.cover as album_cover").
 		Joins("left join songs on playlist_songs.song_id = songs.id").
 		Joins("left join artists on songs.artist_id = artists.id").
 		Joins("left join albums on songs.album_id = albums.id").
@@ -323,8 +325,52 @@ func DeleteSongPlayList(c *gin.Context) {
 	Respond.Resp.Success(c, "删除成功", dId)
 }
 
-// LikeSong 添加喜欢音乐 POST /api/playlists/like/:id
-func LikeSong(c *gin.Context) {
+// ToggleLikeSong 喜欢/取消喜欢音乐 POST /api/playlists/toggle/like
+func ToggleLikeSong(c *gin.Context) {
+	var req = struct {
+		SongId uint `json:"songid"`
+		Liked  bool `json:"liked"`
+	}{}
+	if err := c.ShouldBindJSON(&req); err != nil || req.SongId == 0 {
+		log.Printf("bindJSON err ==> %v", err)
+		Respond.Resp.Fail(c, http.StatusBadRequest, "参数错误")
+		return
+	}
+	userid, _ := c.Get("userid")
+	var likeplaylist model.Playlist
+	if err := global.DB.Model(&model.Playlist{}).
+		Where("user_id = ? AND type = 1", userid).
+		First(&likeplaylist).Error; err != nil {
+		log.Printf("Get playlist id err:==>%v", err)
+		Respond.Resp.Fail(c, http.StatusInternalServerError, "服务器错误")
+		return
+	}
+	var songs []model.Song
+	if err := global.DB.Where("id IN (?)", req.SongId).Find(&songs).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			Respond.Resp.Fail(c, http.StatusBadRequest, "歌曲不存在")
+			return
+		}
+		log.Printf("Get song err:==>%v", err)
+		Respond.Resp.Fail(c, http.StatusInternalServerError, "服务器错误")
+		return
+	}
+
+	tx := global.DB.Begin()
+	if err := updatePlaylistSongs(tx, likeplaylist.ID, songs, req.Liked); err != nil {
+		tx.Rollback()
+		fail(c, "like songs err", err)
+		return
+	}
+	tx.Commit()
+
+	if req.Liked {
+		Respond.Resp.Success(c, "已添加到我喜欢歌单", nil)
+		return
+	}
+	Respond.Resp.Success(c, "已取消喜欢", nil)
+}
+func UnLikeSong(c *gin.Context) {
 	songID := Respond.GetId(c)
 	if songID == -1 {
 		Respond.Resp.Fail(c, http.StatusBadRequest, "参数错误")
@@ -351,14 +397,14 @@ func LikeSong(c *gin.Context) {
 	}
 
 	tx := global.DB.Begin()
-	if err := updatePlaylistSongs(tx, likeplaylist.ID, songs, true); err != nil {
+	if err := updatePlaylistSongs(tx, likeplaylist.ID, songs, false); err != nil {
 		tx.Rollback()
-		fail(c, "like songs err", err)
+		fail(c, "unlike songs err", err)
 		return
 	}
 	tx.Commit()
 
-	Respond.Resp.Success(c, "已添加到我喜欢歌单", nil)
+	Respond.Resp.Success(c, "已取消喜欢", nil)
 }
 
 // 封装事务函数 处理歌单 + - 歌曲
@@ -376,13 +422,31 @@ func updatePlaylistSongs(tx *gorm.DB, playlistId uint, songs []model.Song, add b
 	}
 	var cover sql.NullString
 	tx.Raw(`
-	select al.cover from playlist_songs ps
-	join songs s on s.id = ps.song_id
-	join albums al on al.id = s.album_id
+	SELECT al.cover from playlist_songs ps
+	inner join songs s on s.id = ps.song_id
+	inner join albums al on al.id = s.album_id
 	where ps.playlist_id = ?
 	order by ps.id DESC
+	limit 1;
 `, p.ID).Scan(&cover)
 	return tx.Model(&p).Update("cover", &cover.String).Error
 }
 
-//前端处理 给一个{喜欢的歌曲}id列表
+// GetLikeSongsId  给前端处理一个{喜欢的歌曲}id列表  GET /api/playlists/likesongids -获取所有喜欢的歌的id
+func GetLikeSongsId(c *gin.Context) {
+	userid, _ := c.Get("userid")
+	var playlist model.Playlist
+	if err := global.DB.Model(&playlist).Where("user_id = ? AND type = 1", userid).First(&playlist).Error; err != nil {
+		fail(c, "get like song list err", err)
+		return
+	}
+	var songIds []uint
+	if err := global.DB.Table("playlist_songs").
+		Select("song_id").
+		Where("playlist_id = ?", playlist.ID).
+		Scan(&songIds).Error; err != nil {
+		fail(c, "get like songs err", err)
+		return
+	}
+	Respond.Resp.Success(c, "获取成功", songIds)
+}

@@ -25,6 +25,7 @@ type Playlist struct {
 type PlaylistResp struct {
 	Id          uint      `json:"id"`
 	Name        string    `json:"name"`
+	UserId      uint      `json:"user_id"`
 	Nickname    string    `json:"nickname"`
 	UserAvatar  string    `json:"user_avatar"`
 	Description string    `json:"description,omitempty"`

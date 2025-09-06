@@ -35,6 +35,7 @@ type SongDetailResp struct {
 	Id         int    `json:"id"`
 	Name       string `json:"name"`
 	Duration   uint32 `json:"duration"`
+	AlbumId    uint64 `json:"album_id"`
 	ArtistName string `json:"artist_name"`
 	AlbumName  string `json:"album_name"`
 	AlbumCover string `json:"album_cover"`
